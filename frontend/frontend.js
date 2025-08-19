@@ -72,13 +72,31 @@ const LoadingView = ({ text }) => (
 );
 
 // Player and Editor View Component
-const PlayerView = ({ story, onAddSubtitle, storyHistory, onLoadStory, onDeleteSubtitle }) => {
+const PlayerView = ({ story, onAddSubtitle, storyHistory, onLoadStory, onDeleteSubtitle, onVideoReady }) => {
     const videoRef = useRef(null);
     const [activeSubtitle, setActiveSubtitle] = useState('');
     
     const [subtitleText, setSubtitleText] = useState('');
     const [startTime, setStartTime] = useState('0');
     const [endTime, setEndTime] = useState('5');
+
+    // Effect to notify parent component when video is ready to play
+    useEffect(() => {
+        const videoElement = videoRef.current;
+        if (videoElement) {
+            // Define the handler
+            const handleCanPlay = () => {
+                onVideoReady();
+            };
+            // Add event listener
+            videoElement.addEventListener('canplay', handleCanPlay);
+            // Cleanup: remove event listener when component unmounts or video source changes
+            return () => {
+                videoElement.removeEventListener('canplay', handleCanPlay);
+            };
+        }
+    }, [story.videoSrc, onVideoReady]);
+
 
     const handleTimeUpdate = () => {
         if (!videoRef.current || !story.subtitles) return;
@@ -307,6 +325,7 @@ export default function App() {
     const [loadingText, setLoadingText] = useState('');
     const [storyHistory, setStoryHistory] = useState([]);
     const [currentStory, setCurrentStory] = useState(null);
+    const [isVideoLoading, setIsVideoLoading] = useState(false);
 
     const handleGenerate = (prompt) => {
         setLoadingText('Crafting your story...');
@@ -322,7 +341,8 @@ export default function App() {
             };
             setCurrentStory(newStory);
             setStoryHistory(prev => [newStory, ...prev]);
-            setView('player');
+            setView('player'); // Switch to player view to start loading video
+            setIsVideoLoading(true); // Set video loading state to true
         }, 3000);
     };
 
@@ -349,6 +369,7 @@ export default function App() {
         if (storyToLoad) {
             setCurrentStory(storyToLoad);
             setView('player');
+            setIsVideoLoading(true);
             window.scrollTo(0, 0);
         }
     };
@@ -359,11 +380,10 @@ export default function App() {
     };
     
     const handleAdminLoginAttempt = ({ username, password }) => {
-        // Check for admin/admin credentials
         if (username === 'admin' && password === 'admin') {
             alert(`Signed in as admin!`);
             setIsLoggedIn(true);
-            setView('prompt'); // Redirect to the main app after login
+            setView('prompt');
         } else {
             alert('Invalid credentials. Please try again.');
         }
@@ -374,24 +394,38 @@ export default function App() {
         setView('adminLogin');
     };
 
+    const handleVideoReady = () => {
+        setIsVideoLoading(false);
+    };
+
     const renderContent = () => {
-        switch (view) {
-            case 'loading':
-                return <LoadingView text={loadingText} />;
-            case 'player':
-                return <PlayerView 
+        if (view === 'loading') {
+            return <LoadingView text={loadingText} />;
+        }
+        if (view === 'adminLogin') {
+            return <AdminLoginView onLoginAttempt={handleAdminLoginAttempt} />;
+        }
+        if (view === 'prompt') {
+            return <PromptView onGenerate={handleGenerate} />;
+        }
+        if (view === 'player') {
+            return (
+                <>
+                    {isVideoLoading && <LoadingView text="Preparing video..." />}
+                    <div style={{ visibility: isVideoLoading ? 'hidden' : 'visible' }}>
+                        <PlayerView 
                             story={currentStory} 
                             onAddSubtitle={handleAddSubtitle}
                             onDeleteSubtitle={handleDeleteSubtitle}
                             storyHistory={storyHistory}
                             onLoadStory={handleLoadStory}
-                       />;
-            case 'adminLogin':
-                return <AdminLoginView onLoginAttempt={handleAdminLoginAttempt} />;
-            case 'prompt':
-            default:
-                return <PromptView onGenerate={handleGenerate} />;
+                            onVideoReady={handleVideoReady}
+                       />
+                    </div>
+                </>
+            );
         }
+        return null; // Default case
     };
 
     return (
