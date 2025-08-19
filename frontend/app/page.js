@@ -72,13 +72,24 @@ const LoadingView = ({ text }) => (
 );
 
 // Player and Editor View Component
-const PlayerView = ({ story, onAddSubtitle, storyHistory, onLoadStory, onDeleteSubtitle }) => {
+const PlayerView = ({ story, onAddSubtitle, storyHistory, onLoadStory, onDeleteSubtitle, onVideoReady }) => {
     const videoRef = useRef(null);
     const [activeSubtitle, setActiveSubtitle] = useState('');
     
     const [subtitleText, setSubtitleText] = useState('');
     const [startTime, setStartTime] = useState('0');
     const [endTime, setEndTime] = useState('5');
+
+    // Effect to notify parent component when video is ready to play
+    useEffect(() => {
+        const videoElement = videoRef.current;
+        if (videoElement) {
+            const handleCanPlay = () => onVideoReady();
+            videoElement.addEventListener('canplay', handleCanPlay);
+            return () => videoElement.removeEventListener('canplay', handleCanPlay);
+        }
+    }, [story.videoSrc, onVideoReady]);
+
 
     const handleTimeUpdate = () => {
         if (!videoRef.current || !story.subtitles) return;
@@ -307,48 +318,94 @@ export default function App() {
     const [loadingText, setLoadingText] = useState('');
     const [storyHistory, setStoryHistory] = useState([]);
     const [currentStory, setCurrentStory] = useState(null);
+    const [isVideoLoading, setIsVideoLoading] = useState(false);
 
-    const handleGenerate = (prompt) => {
+    // --- BACKEND INTEGRATION POINT ---
+    const handleGenerate = async (prompt) => {
         setLoadingText('Crafting your story...');
         setView('loading');
         
-        setTimeout(() => {
-            const newStory = {
+        try {
+            // TODO: Replace with your actual backend API call
+            // const response = await fetch('/api/generate-story', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ prompt }),
+            // });
+            // if (!response.ok) throw new Error('Story generation failed');
+            // const storyData = await response.json();
+
+            // --- MOCK DATA (Remove after implementing backend call) ---
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate network delay
+            const storyData = {
                 id: Date.now(),
                 prompt: prompt,
                 videoSrc: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
                 poster: `https://placehold.co/600x400/e2e8f0/334155?text=Story+for+${encodeURIComponent(prompt.substring(0,10))}`,
                 subtitles: []
             };
-            setCurrentStory(newStory);
-            setStoryHistory(prev => [newStory, ...prev]);
-            setView('player');
-        }, 3000);
+            // --- END MOCK DATA ---
+
+            setCurrentStory(storyData);
+            setStoryHistory(prev => [storyData, ...prev]);
+            setView('player'); 
+            setIsVideoLoading(true);
+        } catch (error) {
+            console.error("Error generating story:", error);
+            alert("Failed to generate the story. Please try again.");
+            setView('prompt'); // Go back to prompt on error
+        }
     };
 
-    const handleAddSubtitle = (newSubtitle) => {
-        const updatedStory = {
-            ...currentStory,
-            subtitles: [...currentStory.subtitles, newSubtitle]
-        };
+    // --- BACKEND INTEGRATION POINT ---
+    const handleAddSubtitle = async (newSubtitle) => {
+        const updatedSubtitles = [...currentStory.subtitles, newSubtitle];
+        
+        // TODO: Add a backend call here to save the new subtitle
+        // try {
+        //     await fetch(`/api/stories/${currentStory.id}/subtitles`, {
+        //         method: 'POST',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify(newSubtitle),
+        //     });
+        // } catch (error) {
+        //     console.error("Failed to save subtitle:", error);
+        //     alert("Could not save your subtitle. Please check your connection.");
+        //     return; // Don't update UI if backend call fails
+        // }
+
+        const updatedStory = { ...currentStory, subtitles: updatedSubtitles };
         setCurrentStory(updatedStory);
         setStoryHistory(prev => prev.map(s => s.id === updatedStory.id ? updatedStory : s));
     };
     
-    const handleDeleteSubtitle = (subtitleId) => {
-        const updatedStory = {
-            ...currentStory,
-            subtitles: currentStory.subtitles.filter(sub => sub.id !== subtitleId)
-        };
+    // --- BACKEND INTEGRATION POINT ---
+    const handleDeleteSubtitle = async (subtitleId) => {
+        const updatedSubtitles = currentStory.subtitles.filter(sub => sub.id !== subtitleId);
+
+        // TODO: Add a backend call here to delete the subtitle
+        // try {
+        //     await fetch(`/api/stories/${currentStory.id}/subtitles/${subtitleId}`, {
+        //         method: 'DELETE',
+        //     });
+        // } catch (error) {
+        //     console.error("Failed to delete subtitle:", error);
+        //     alert("Could not delete your subtitle. Please check your connection.");
+        //     return; // Don't update UI if backend call fails
+        // }
+
+        const updatedStory = { ...currentStory, subtitles: updatedSubtitles };
         setCurrentStory(updatedStory);
         setStoryHistory(prev => prev.map(s => s.id === updatedStory.id ? updatedStory : s));
     };
     
     const handleLoadStory = (storyId) => {
+        // In a real app, this might fetch the full story data from the backend
         const storyToLoad = storyHistory.find(s => s.id === storyId);
         if (storyToLoad) {
             setCurrentStory(storyToLoad);
             setView('player');
+            setIsVideoLoading(true);
             window.scrollTo(0, 0);
         }
     };
@@ -358,39 +415,68 @@ export default function App() {
         setCurrentStory(null);
     };
     
-    const handleAdminLoginAttempt = ({ username, password }) => {
-        // Check for admin/admin credentials
-        if (username === 'admin' && password === 'admin') {
-            alert(`Signed in as admin!`);
-            setIsLoggedIn(true);
-            setView('prompt'); // Redirect to the main app after login
-        } else {
-            alert('Invalid credentials. Please try again.');
+    // --- BACKEND INTEGRATION POINT ---
+    const handleAdminLoginAttempt = async ({ username, password }) => {
+        try {
+            // TODO: Replace with your actual backend API call for authentication
+            // const response = await fetch('/api/login', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ username, password }),
+            // });
+            // if (!response.ok) throw new Error('Invalid credentials');
+            // const { token } = await response.json(); // Assuming backend returns a token
+            
+            // For now, we'll use the mock logic
+            if (username === 'admin' && password === 'admin') {
+                // In a real app, you would save the auth token (e.g., in localStorage or a cookie)
+                setIsLoggedIn(true);
+                setView('prompt');
+            } else {
+                throw new Error('Invalid credentials');
+            }
+        } catch (error) {
+            alert(error.message + '. Please try again.');
         }
     };
     
     const handleLogout = () => {
+        // TODO: Add a backend call here to invalidate the session/token if needed
         setIsLoggedIn(false);
         setView('adminLogin');
     };
 
+    const handleVideoReady = () => {
+        setIsVideoLoading(false);
+    };
+
     const renderContent = () => {
+        // This is the corrected rendering logic
         switch (view) {
             case 'loading':
                 return <LoadingView text={loadingText} />;
-            case 'player':
-                return <PlayerView 
-                            story={currentStory} 
-                            onAddSubtitle={handleAddSubtitle}
-                            onDeleteSubtitle={handleDeleteSubtitle}
-                            storyHistory={storyHistory}
-                            onLoadStory={handleLoadStory}
-                       />;
             case 'adminLogin':
                 return <AdminLoginView onLoginAttempt={handleAdminLoginAttempt} />;
             case 'prompt':
-            default:
                 return <PromptView onGenerate={handleGenerate} />;
+            case 'player':
+                return (
+                    <>
+                        {isVideoLoading && <LoadingView text="Preparing video..." />}
+                        <div style={{ visibility: isVideoLoading ? 'hidden' : 'visible' }}>
+                            <PlayerView 
+                                story={currentStory} 
+                                onAddSubtitle={handleAddSubtitle}
+                                onDeleteSubtitle={handleDeleteSubtitle}
+                                storyHistory={storyHistory}
+                                onLoadStory={handleLoadStory}
+                                onVideoReady={handleVideoReady}
+                           />
+                        </div>
+                    </>
+                );
+            default:
+                return null; // Default case
         }
     };
 
