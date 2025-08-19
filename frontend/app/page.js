@@ -430,7 +430,6 @@ export default function App() {
             // For now, we'll use the mock logic
             if (username === 'admin' && password === 'admin') {
                 // In a real app, you would save the auth token (e.g., in localStorage or a cookie)
-                alert(`Signed in as admin!`);
                 setIsLoggedIn(true);
                 setView('prompt');
             } else {
