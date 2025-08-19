@@ -31,7 +31,8 @@ model = genai.GenerativeModel('gemini-2.5-flash')
 def generate_content(request: PromptRequest):
     try:
         # Generate content using the provided prompt
-        response = model.generate_content(request.prompt)
+        intro = "write a story based on the given prompt in about 150 words"
+        response = model.generate_content(intro + request.prompt)
         
         # Check if the response has text
         if not response.text:
@@ -40,7 +41,7 @@ def generate_content(request: PromptRequest):
         return {"response": response.text}
 
     except Exception as e:
-        # Handle potential API errors or other exceptions
+        
         print(f"An error occurred: {e}")
         raise HTTPException(status_code=500, detail=f"An internal error occurred: {e}")
 
